@@ -4,6 +4,7 @@ import {
   Fragment,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ComponentType,
 } from "react";
@@ -23,7 +24,33 @@ import {
 } from "../reactivity";
 import { animatedComponentFamily } from "../reanimated";
 import { getStyledProps, stylesFamily } from "../styles";
+import { layoutGrid } from "./grid";
 import { updateRules } from "./rules";
+
+/**
+ * Variables a `dark` class token applies to its element and everything under it, like the CSS `.dark`
+ * scope (`.dark:root` otherwise compiles to the app-wide color scheme only). Registered by the app.
+ */
+// Kept on the global object, so every loaded copy of this module (ESM and CommonJS builds) shares it.
+const DARK_SCOPE_KEY = "__reactNativeCssDarkScopeVariables";
+const scopeRegistry = globalThis as unknown as Record<
+  string,
+  Record<string, unknown> | undefined
+>;
+export function setDarkScopeVariables(variables: Record<string, unknown>) {
+  // CSS names (`--ds-background`); variables are stored without the leading dashes.
+  scopeRegistry[DARK_SCOPE_KEY] = Object.fromEntries(
+    Object.entries(variables).map(([name, value]) => [
+      name.replace(/^--/, ""),
+      value,
+    ]),
+  );
+}
+const DARK_SCOPE_TOKEN = /(^|\s)dark(\s|$)/;
+const isDarkScope = (props: Record<string, any> | undefined | null) =>
+  scopeRegistry[DARK_SCOPE_KEY] !== undefined &&
+  typeof props?.className === "string" &&
+  DARK_SCOPE_TOKEN.test(props.className);
 
 export type Config = {
   source: string;
@@ -65,7 +92,18 @@ export function useNativeCss(
   originalProps: Record<string, any> | undefined | null,
   configs: Config[] = [{ source: "className", target: "style" }],
 ) {
-  const inheritedVariables = useContext(VariableContext);
+  const contextVariables = useContext(VariableContext);
+  const darkScope = isDarkScope(originalProps);
+  const inheritedVariables = useMemo(
+    () =>
+      darkScope
+        ? ({
+            ...contextVariables,
+            ...scopeRegistry[DARK_SCOPE_KEY],
+          } as typeof contextVariables)
+        : contextVariables,
+    [darkScope, contextVariables],
+  );
   const inheritedContainers = useContext(ContainerContext);
 
   const [state, setState] = useState((): ComponentState => {
@@ -147,10 +185,12 @@ export function useNativeCss(
     return createElement(Fragment);
   }
 
-  let props = getStyledProps(
-    state,
-    originalProps,
-    type === Image ? adaptImageProps : undefined,
+  let props = layoutGrid(
+    getStyledProps(
+      state,
+      originalProps,
+      type === Image ? adaptImageProps : undefined,
+    ),
   );
 
   if (type === View && props?.onPress) {
@@ -161,9 +201,11 @@ export function useNativeCss(
     type = animatedComponentFamily(type);
   }
 
-  if (state.variables) {
+  if (state.variables || darkScope) {
     props = {
-      value: state.variables,
+      value: state.variables
+        ? { ...inheritedVariables, ...state.variables }
+        : inheritedVariables,
       children: createElement(type, props),
     };
     type = VariableContext.Provider;

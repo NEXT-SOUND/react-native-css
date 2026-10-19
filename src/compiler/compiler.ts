@@ -42,6 +42,16 @@ import { supportsConditionValid } from "./supports";
 
 const defaultLogger = debug("react-native-css:compiler");
 
+const isClassQualifiedRoot = (selector: any[]) =>
+  selector.some(
+    (part) => part.type === "pseudo-class" && part.kind === "root",
+  ) &&
+  selector.some(
+    (part) =>
+      part.type === "class" ||
+      (part.type === "attribute" && part.name === "class"),
+  );
+
 /**
  * Converts a CSS file to a collection of style declarations that can be used with the StyleSheet API
  *
@@ -108,26 +118,21 @@ export function compile(code: Buffer | string, options: CompilerOptions = {}) {
           `Unsupported @${rule.value.name} configuration. Use the compiler inlineVariables.exclude option to preserve variables, @media (prefers-color-scheme: dark) for dark mode, and React Native Appearance.setColorScheme() for manual selection.`,
         );
       }
-      // Reject before variable inlining can erase an unsupported condition and
-      // accidentally turn its values into unconditional declarations.
+      // Web theme scopes (`.dark:root`, `:root:not(.dark) .dark`) have no native meaning. They are dropped, never
+      // inlined, so variable inlining cannot turn their values into unconditional declarations; the rest of a
+      // selector list stays.
       if (
         rule.type === "style" &&
-        rule.value.selectors.some(
-          (selector) =>
-            selector.some(
-              (part) => part.type === "pseudo-class" && part.kind === "root",
-            ) &&
-            selector.some(
-              (part) =>
-                part.type === "class" ||
-                (part.type === "attribute" && part.name === "class"),
-            ),
-        )
+        rule.value.selectors.some(isClassQualifiedRoot)
       ) {
-        throw new Error(
-          "Class-qualified :root selectors are unsupported on native. Use @media (prefers-color-scheme: dark) for dark mode, and React Native Appearance.setColorScheme() for manual selection.",
+        const selectors = rule.value.selectors.filter(
+          (selector) => !isClassQualifiedRoot(selector),
         );
+        return selectors.length
+          ? { ...rule, value: { ...rule.value, selectors } }
+          : [];
       }
+      return undefined;
     },
   };
 

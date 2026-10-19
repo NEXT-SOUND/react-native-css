@@ -167,26 +167,23 @@ describe("Flexbox & Grid - Order", () => {
 describe("Flexbox & Grid - Grid Template Columns", () => {
   test("grid-cols-1", async () => {
     expect(await renderCurrentTest()).toStrictEqual({
-      props: {},
-      warnings: { properties: ["grid-template-columns"] },
+      props: { style: { gridTemplateColumns: "1fr" } },
     });
   });
   test("grid-cols-2", async () => {
     expect(await renderCurrentTest()).toStrictEqual({
-      props: {},
-      warnings: { properties: ["grid-template-columns"] },
+      props: { style: { gridTemplateColumns: "1fr 1fr" } },
     });
   });
   test("grid-cols-none", async () => {
     expect(await renderCurrentTest()).toStrictEqual({
       props: {},
-      warnings: { properties: ["grid-template-columns"] },
+      warnings: { values: { "grid-template-columns": "none" } },
     });
   });
   test("grid-cols-[200px_minmax(900px,_1fr)_100px]", async () => {
     expect(await renderCurrentTest()).toStrictEqual({
-      props: {},
-      warnings: { properties: ["grid-template-columns"] },
+      props: { style: { gridTemplateColumns: "200px 1fr 100px" } },
     });
   });
 });

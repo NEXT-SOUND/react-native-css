@@ -185,6 +185,7 @@ const parsers: {
   "container-name": parseContainerName,
   "container-type": parseContainerType,
   "display": parseDisplay,
+  "grid-template-columns": parseGridTemplateColumns,
   "direction": parseDirection,
   "fill": parseSVGPaint,
   "filter": parseFilter,
@@ -2522,10 +2523,12 @@ export function parseDisplay(
           return;
         case "flex":
           return value.inside.type;
+        // Kept as a marker the runtime lays out (`native/react/grid.ts`).
+        case "grid":
+          return "grid";
         case "flow-root":
         case "table":
         case "box":
-        case "grid":
         case "ruby":
           builder.addWarning("value", value.inside.type);
           return;
@@ -2544,15 +2547,76 @@ export function parseDisplay(
         case "flex":
           builder.addWarning("value", "inline-flex");
           return;
-        case "box":
         case "grid":
-          builder.addWarning("value", "inline-grid");
+          return "grid";
+        case "box":
+          builder.addWarning("value", "inline-box");
           return;
         case "ruby":
           builder.addWarning("value", value.inside.type);
           return;
       }
     }
+  }
+}
+
+/**
+ * The column template as tracks for the runtime's grid (`native/react/grid.ts`): `fr` shares, `px` lengths and
+ * `auto`, with `repeat(N, …)` expanded and `minmax(…)` taken at its maximum (Tailwind's `minmax(0, 1fr)` is a share).
+ * Templates it cannot lay out (auto-fill repeats, percentages) are left out, so the grid is one column.
+ */
+function parseGridTemplateColumns(
+  { value }: DeclarationType<"grid-template-columns">,
+  builder: StylesheetBuilder,
+) {
+  if (value.type !== "track-list") {
+    builder.addWarning("value", value.type);
+    return;
+  }
+  const tracks: string[] = [];
+  for (const item of value.items as any[]) {
+    if (item.type === "track-size") {
+      const track = gridTrack(item.value);
+      if (!track)
+        return void builder.addWarning("value", "grid-template-columns");
+      tracks.push(track);
+    } else if (
+      item.type === "track-repeat" &&
+      item.value.count.type === "number"
+    ) {
+      const sizes = (item.value.trackSizes as any[]).map(gridTrack);
+      if (sizes.some((size) => !size))
+        return void builder.addWarning("value", "grid-template-columns");
+      for (let index = 0; index < item.value.count.value; index++)
+        tracks.push(...(sizes as string[]));
+    } else {
+      return void builder.addWarning("value", "grid-template-columns");
+    }
+  }
+  return tracks.join(" ");
+}
+
+function gridTrack(size: any): string | undefined {
+  if (size.type === "min-max") return gridBreadth(size.max);
+  if (size.type === "track-breadth") return gridBreadth(size.value);
+  return undefined;
+}
+
+function gridBreadth(breadth: any): string | undefined {
+  switch (breadth.type) {
+    case "flex":
+      return `${breadth.value}fr`;
+    case "auto":
+    case "min-content":
+    case "max-content":
+      return "auto";
+    case "length":
+      return breadth.value.type === "dimension" &&
+        breadth.value.value.unit === "px"
+        ? `${breadth.value.value.value}px`
+        : undefined;
+    default:
+      return undefined;
   }
 }
 

@@ -11,16 +11,27 @@ test("legacy class dark mode configuration is rejected with a migration path", (
   ).toThrow(/prefers-color-scheme/);
 });
 
-test.each([':root[class="dark"]', ':root[class~="dark"]'])(
-  "legacy qualified root %s cannot silently become unconditional",
+test.each([
+  ':root[class="dark"]',
+  ':root[class~="dark"]',
+  ".dark:root",
+  ":root:not(.dark) .dark",
+])(
+  "class-qualified root %s is dropped, never made unconditional",
   (selector) => {
-    expect(() =>
-      registerCSS(
-        `${selector} { --my-var: red; } .my-class { color: var(--my-var); }`,
-      ),
-    ).toThrow(/prefers-color-scheme/);
+    registerCSS(
+      `:root { --my-var: blue; } ${selector} { --my-var: red; } .my-class { color: var(--my-var); }`,
+    );
+    render(<View testID={testID} className="my-class" />);
+    expect(screen.getByTestId(testID).props.style).toEqual({ color: "#00f" });
   },
 );
+
+test("a class-qualified root keeps the other selectors in its list", () => {
+  registerCSS(`.dark:root, .my-class { color: red; }`);
+  render(<View testID={testID} className="my-class" />);
+  expect(screen.getByTestId(testID).props.style).toEqual({ color: "#f00" });
+});
 
 test("explicit ancestor selector follows its actual class and restores when removed", () => {
   registerCSS(

@@ -19,7 +19,9 @@ export const colorMix: StyleFunctionResolver = (resolveValue, value) => {
   if (!Array.isArray(resolved)) return;
 
   // Resolved descriptors may be cached and shared by another styled component.
-  const args: unknown[] = [...(resolved as unknown[])];
+  // The compiler writes an absent second weight as a trailing `null` (`color-mix(in oklab, var(--x) 15%, transparent)`,
+  // Tailwind's opacity modifier); it is no argument.
+  const args: unknown[] = (resolved as unknown[]).filter((arg) => arg != null);
   try {
     const space = args.shift();
     const leftValue = args.shift();

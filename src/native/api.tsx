@@ -31,6 +31,7 @@ export {
 } from "react-native-css/native-internal";
 
 export { useNativeCss };
+export { setDarkScopeVariables } from "./react/useNativeCss";
 
 const defaultMapping: StyledConfiguration<ComponentType<{ style: unknown }>> = {
   className: "style",

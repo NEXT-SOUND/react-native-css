@@ -306,14 +306,12 @@ describe("Layout - Display", () => {
   });
   test("grid", async () => {
     expect(await renderCurrentTest()).toStrictEqual({
-      props: {},
-      warnings: { values: { display: "grid" } },
+      props: { style: { flexDirection: "column", rowGap: 0 } },
     });
   });
   test("inline-grid", async () => {
     expect(await renderCurrentTest()).toStrictEqual({
-      props: {},
-      warnings: { values: { display: "inline-grid" } },
+      props: { style: { flexDirection: "column", rowGap: 0 } },
     });
   });
   test("list-item", async () => {
