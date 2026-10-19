@@ -19,65 +19,82 @@ export function inlineVariables(
     }
   }
 
-  stylesheet.rules = stylesheet.rules.map(function checkRule(rule) {
-    switch (rule.type) {
-      case "custom":
-      case "font-face":
-      case "font-palette-values":
-      case "font-feature-values":
-      case "namespace":
-      case "layer-statement":
-      case "property":
-      case "view-transition":
-      case "ignored":
-      case "unknown":
-      case "import":
-      case "page":
-      case "counter-style":
-      case "moz-document":
-      case "nesting":
-      case "viewport":
-      case "custom-media":
-      case "scope":
-      case "starting-style":
-        return rule;
+  // A rule a visitor removed (`[]`) stays behind as `ignored`, which lightningcss cannot read back from
+  // `StyleSheetExit`; it is dropped here.
+  const isKept = (rule: (typeof stylesheet.rules)[number]): boolean =>
+    rule.type !== "ignored";
 
-      case "media":
-        rule.value.rules = rule.value.rules.map((rule) => checkRule(rule));
-        return rule;
-      case "keyframes":
-        rule.value.keyframes = rule.value.keyframes.map((keyframe) => {
-          keyframe.declarations =
-            replaceDeclarationBlock(keyframe.declarations, vars) ??
-            keyframe.declarations;
+  stylesheet.rules = stylesheet.rules
+    .filter(isKept)
+    .map(function checkRule(rule) {
+      switch (rule.type) {
+        case "custom":
+        case "font-face":
+        case "font-palette-values":
+        case "font-feature-values":
+        case "namespace":
+        case "layer-statement":
+        case "property":
+        case "view-transition":
+        case "ignored":
+        case "unknown":
+        case "import":
+        case "page":
+        case "counter-style":
+        case "moz-document":
+        case "nesting":
+        case "viewport":
+        case "custom-media":
+        case "scope":
+        case "starting-style":
+          return rule;
 
-          return keyframe;
-        });
-        return rule;
-      case "style":
-        rule.value.declarations = replaceDeclarationBlock(
-          rule.value.declarations,
-          vars,
-        );
+        case "media":
+          rule.value.rules = rule.value.rules
+            .filter(isKept)
+            .map((rule) => checkRule(rule));
+          return rule;
+        case "keyframes":
+          rule.value.keyframes = rule.value.keyframes.map((keyframe) => {
+            keyframe.declarations =
+              replaceDeclarationBlock(keyframe.declarations, vars) ??
+              keyframe.declarations;
 
-        rule.value.rules = rule.value.rules?.flatMap((rule) => checkRule(rule));
+            return keyframe;
+          });
+          return rule;
+        case "style":
+          rule.value.declarations = replaceDeclarationBlock(
+            rule.value.declarations,
+            vars,
+          );
 
-        return rule;
-      case "nested-declarations":
-        rule.value.declarations =
-          replaceDeclarationBlock(rule.value.declarations, vars) ?? {};
-        return rule;
-      case "supports":
-        rule.value.rules = rule.value.rules.flatMap((rule) => checkRule(rule));
-        return rule;
-      case "layer-block":
-        rule.value.rules = rule.value.rules.flatMap((rule) => checkRule(rule));
-        return rule;
-      case "container":
-        rule.value.rules = rule.value.rules.flatMap((rule) => checkRule(rule));
-        return rule;
-    }
-  });
+          rule.value.rules = rule.value.rules?.flatMap((rule) =>
+            checkRule(rule),
+          );
+
+          return rule;
+        case "nested-declarations":
+          rule.value.declarations =
+            replaceDeclarationBlock(rule.value.declarations, vars) ?? {};
+          return rule;
+        case "supports":
+          rule.value.rules = rule.value.rules.flatMap((rule) =>
+            checkRule(rule),
+          );
+          return rule;
+        case "layer-block":
+          rule.value.rules = rule.value.rules.flatMap((rule) =>
+            checkRule(rule),
+          );
+          return rule;
+        case "container":
+          rule.value.rules = rule.value.rules.flatMap((rule) =>
+            checkRule(rule),
+          );
+          return rule;
+      }
+    });
 
   return stylesheet;
 }
