@@ -108,3 +108,46 @@ test("group selector", () => {
 
   expect(child.props.style).toStrictEqual(undefined);
 });
+
+describe("a group tracked for press state", () => {
+  beforeEach(() => {
+    registerCSS(`.group\\/item:active .my-class { color: red; }`);
+  });
+
+  test("stays an accessibility container", () => {
+    render(
+      <View testID={parentID} className="group/item">
+        <View testID={childID} className="my-class" />
+      </View>,
+    );
+
+    expect(screen.getByTestId(parentID).props.accessible).toBe(false);
+  });
+
+  test("keeps the accessibility its caller gives it", () => {
+    render(
+      <View
+        testID={parentID}
+        className="group/item"
+        accessible
+        accessibilityLabel="Item"
+      >
+        <View testID={childID} className="my-class" />
+      </View>,
+    );
+
+    expect(screen.getByTestId(parentID).props.accessible).toBe(true);
+  });
+
+  test("stays an accessibility element when the caller makes it pressable", () => {
+    const callerPress = { onPress: () => undefined } as object;
+    render(
+      // `onPress` is not a View prop in the types, but a pressable View is what this package turns it into.
+      <View testID={parentID} className="group/item" {...callerPress}>
+        <View testID={childID} className="my-class" />
+      </View>,
+    );
+
+    expect(screen.getByTestId(parentID).props.accessible).not.toBe(false);
+  });
+});

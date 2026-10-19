@@ -195,6 +195,13 @@ export function useNativeCss(
 
   if (type === View && props?.onPress) {
     type = Pressable;
+    // A view becomes pressable here only to track its press state for a group or container that styles its children
+    // on press (`group-active:`, a `dark` scope). That tracking is not a control: unless the caller made the view
+    // pressable or accessible itself, it stays an accessibility container, so VoiceOver does not read the whole
+    // subtree as one button.
+    if (originalProps?.onPress === undefined && originalProps?.accessible === undefined) {
+      props = { ...props, accessible: false };
+    }
   }
 
   if (state.animated) {
