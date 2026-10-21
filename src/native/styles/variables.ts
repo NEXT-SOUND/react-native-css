@@ -83,6 +83,10 @@ export function varResolver(
       return variableCycles.has(name) ? resolve(fallback) : value;
     }
 
+    // No ancestor sets it yet. Guard its absence too, so the element restyles
+    // once one does (a `dark` scope turned on above a styled child).
+    renderGuards?.push(["v", name, undefined]);
+
     value = resolve(get(rootVariables(name)));
     if (variableCycles.has(name)) return resolve(fallback);
     if (value !== undefined) {
